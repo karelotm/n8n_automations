@@ -1,0 +1,309 @@
+{
+  "name": "New Lead",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Tu es un expert commercial. Analyse cette demande :\nNom: {{ $json.body.data.fields.find(f => f.key === 'question_9QOdGp').value }}\nEmail: {{ $json.body.data.fields.find(f => f.key === 'question_eRLBZ0').value }}\nTéléphone: {{ $json.body.data.fields.find(f => f.key === 'question_WzPA9j').value }}\nBesoin: {{ $json.body.data.fields.find(f => f.key === 'question_ad0BNv').value }}\n\nAttribue un 'Score de Priorité' de 1 à 10.\nRésume le besoin en une phrase courte.\n\nRéponds OBLIGATOIREMENT et UNIQUEMENT en format JSON comme ceci :\n{\n  \"score\": X,\n  \"resume\": \"...\"\n}",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        224,
+        16
+      ],
+      "id": "0097129c-e861-47d4-8ee8-7938a4a92334",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        296,
+        240
+      ],
+      "id": "9f9ce4c6-db84-42c9-b0ce-6bf76b5ebb21",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "AhPP7zGF2VWjyvdL",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "919f41e8-96e0-49b7-b30d-15ad815302d0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        16
+      ],
+      "id": "1366daa1-0d6d-4809-ad14-0b320eaeeb11",
+      "name": "Webhook_Tally",
+      "webhookId": "919f41e8-96e0-49b7-b30d-15ad815302d0"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.zapier.com/hooks/catch/25115642/urvnnzp/",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"nom_client\": \"{{ $node[\"Webhook_Tally\"].json.body.data.fields.find(f => f.key === 'question_9QOdGp').value }}\",\n  \"email_client\": \"{{ $node[\"Webhook_Tally\"].json.body.data.fields.find(f => f.key === 'question_eRLBZ0').value }}\",\n  \"tel_client\": \"{{ $node[\"Webhook_Tally\"].json.body.data.fields.find(f => f.key === 'question_WzPA9j').value }}\",\n  \"besoin_client\": \"{{ $node[\"Webhook_Tally\"].json.body.data.fields.find(f => f.key === 'question_ad0BNv').value }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        576,
+        16
+      ],
+      "id": "c5173d65-1778-44a8-818b-f39131d83781",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "2961d234-487e-80f4-b839-d023e0596523",
+          "mode": "list",
+          "cachedResultName": "Prospects",
+          "cachedResultUrl": "https://www.notion.so/2961d234487e80f4b839d023e0596523"
+        },
+        "title": "=",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Nom|title",
+              "title": "={{ $('Webhook_Tally').item.json.body.data.fields[0].value }}"
+            },
+            {
+              "key": "Email|email",
+              "emailValue": "={{ $('Webhook_Tally').item.json.body.data.fields[1].value }}"
+            },
+            {
+              "key": "Téléphone|phone_number",
+              "phoneValue": "={{ $('Webhook_Tally').item.json.body.data.fields[2].value }}"
+            },
+            {
+              "key": "Score IA|number",
+              "numberValue": "={{ JSON.parse($node[\"Basic LLM Chain\"].json.text.match(/\\{.*\\}/s)[0]).score }}"
+            },
+            {
+              "key": "Besoin (IA)|rich_text",
+              "textContent": "={{ JSON.parse($node[\"Basic LLM Chain\"].json.text.match(/\\{.*\\}/s)[0]).resume }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        16
+      ],
+      "id": "d396e38c-f021-440d-95b4-9e1093a25534",
+      "name": "Create a database page",
+      "credentials": {
+        "notionApi": {
+          "id": "xFIvKTG2XEt2XogR",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d867dd87-e612-4c01-8a62-d6dd6f34198a",
+              "leftValue": "={{ JSON.parse($node[\"Basic LLM Chain\"].json.text.match(/\\{.*\\}/s)[0]).score }}",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        16
+      ],
+      "id": "12e9a5c5-6f15-40ad-8957-bdc020e4f88b",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C09NBSP3S9H",
+          "mode": "list",
+          "cachedResultName": "leads"
+        },
+        "text": "=LEAD CHAUD (Score: {{ JSON.parse($node[\"Basic LLM Chain\"].json.text.match(/\\{.*\\}/s)[0]).score }})\nNom: {{ $node[\"Webhook_Tally\"].json.body.data.fields.find(f => f.key === 'question_9QOdGp').value }}\nEmail: {{ $node[\"Webhook_Tally\"].json.body.data.fields.find(f => f.key === 'question_eRLBZ0').value }}\nBesoin: {{ JSON.parse($node[\"Basic LLM Chain\"].json.text.match(/\\{.*\\}/s)[0]).resume }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1248,
+        -80
+      ],
+      "id": "9deb16f5-9df9-48fd-987b-f80a4269f78f",
+      "name": "Send a message",
+      "webhookId": "cdf8d099-2eee-4654-8434-bb0365507191",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "Y2PUndM5fGxvFJ7J",
+          "name": "Slack account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C09NDN16CJ1",
+          "mode": "list",
+          "cachedResultName": "nouveau-canal"
+        },
+        "text": "=Nouveau Lead (Score: {{ JSON.parse($node[\"Basic LLM Chain\"].json.text.match(/\\{.*\\}/s)[0]).score }})\nNom: {{ $node[\"Webhook_Tally\"].json.body.data.fields.find(f => f.key === 'question_9QOdGp').value }}\nBesoin: {{ JSON.parse($node[\"Basic LLM Chain\"].json.text.match(/\\{.*\\}/s)[0]).resume }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1248,
+        112
+      ],
+      "id": "186fd679-6aac-444f-b194-6c8ade86f781",
+      "name": "Send a message1",
+      "webhookId": "5613b892-11cd-4bf7-a319-4341c83f2fcb",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "Y2PUndM5fGxvFJ7J",
+          "name": "Slack account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook_Tally": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Create a database page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a database page": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "qfOr3lKaJFGxuZ46",
+    "timeSavedPerExecution": 2
+  },
+  "versionId": "49f69242-5b5f-4b18-aac2-036ac39ed8f4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e5e1e6cd66500fe2f48d1e147ce40458cd1dadf0bc764b791b683833a581947b"
+  },
+  "id": "qfOr3lKaJFGxuZ46",
+  "tags": []
+}
